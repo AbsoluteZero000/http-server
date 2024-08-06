@@ -55,15 +55,39 @@ int main(int argc, char **argv) {
 
     std::cout << "Client connected\n";
 
-    // Correct HTTP response format
-    std::string http_response =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: 47\r\n"
-        "Connection: close\r\n"
-        "\r\n"
-        "<html><body><h1>Hello from your server!</h1></body></html>";
+    // Buffer to store the HTTP request
+    char buffer[1024];
+    memset(buffer, 0, sizeof(buffer));
+    recv(client, buffer, sizeof(buffer) - 1, 0);
 
+    std::string request(buffer);
+    std::string request_line = request.substr(0, request.find("\r\n"));
+    std::cout << "Request: " << request_line << std::endl;
+
+    size_t method_end = request_line.find(' ');
+    size_t path_end = request_line.find(' ', method_end + 1);
+    std::string path = request_line.substr(method_end + 1, path_end - method_end - 1);
+
+    std::string http_response;
+    if (path == "/") {
+        http_response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: 47\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "<html><body><h1>Hello from your server!</h1></body></html>";
+    } else {
+        http_response =
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: 23\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "<html><body><h1>404 Not Found</h1></body></html>";
+    }
+
+    // Send the response
     send(client, http_response.c_str(), http_response.length(), 0);
 
     close(client);
