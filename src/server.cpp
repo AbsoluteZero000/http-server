@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
         std::cout<<"Echo: "<<path.substr(6)<<std::endl;
         http_response =
             "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/html\r\n"
+            "Content-Type: text/plain\r\n"
             "Content-Length: " + std::to_string(path.substr(6).size()) + "\r\n"
             "Connection: close\r\n"
             "\r\n"
