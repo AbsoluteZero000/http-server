@@ -7,6 +7,22 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <vector>
+
+std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
+    size_t pos = 0;
+    size_t prev_pos = 0;
+    std::vector<std::string> result;
+
+    while ((pos = s.find(delimiter, prev_pos)) != std::string::npos) {
+        std::string token = s.substr(prev_pos, pos - prev_pos);
+        result.push_back(token);
+        prev_pos = pos + delimiter.length();
+    }
+    result.push_back(s.substr(prev_pos));
+
+    return result;
+}
 
 int main(int argc, char **argv) {
     std::cout << std::unitbuf;
@@ -55,18 +71,20 @@ int main(int argc, char **argv) {
 
     std::cout << "Client connected\n";
 
-    // Buffer to store the HTTP request
     char buffer[2048];
     memset(buffer, 0, sizeof(buffer));
     recv(client, buffer, sizeof(buffer) - 1, 0);
 
     std::string request(buffer);
+    std::cout << request << std::endl;
     std::string request_line = request.substr(0, request.find("\r\n"));
     std::cout << "Request: " << request_line << std::endl;
 
     size_t method_end = request_line.find(' ');
     size_t path_end = request_line.find(' ', method_end + 1);
     std::string path = request_line.substr(method_end + 1, path_end - method_end - 1);
+
+    std::cout << "Path: " << path << std::endl;
 
     std::string http_response;
     if (path == "/") {
@@ -77,16 +95,31 @@ int main(int argc, char **argv) {
             "Connection: close\r\n"
             "\r\n"
             "<html><body><h1>Hello from your server!</h1></body></html>";
-    }else if(path.rfind("/echo", 0) == 0){
-        std::cout<<"Echo: "<<path.substr(6)<<std::endl;
+    } else if (path.rfind("/echo", 0) == 0) {
+        std::string message = path.substr(6);
         http_response =
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: text/plain\r\n"
-            "Content-Length: " + std::to_string(path.substr(6).size()) + "\r\n"
+            "Content-Length: " + std::to_string(message.size()) + "\r\n"
             "Connection: close\r\n"
             "\r\n"
-            + path.substr(6);
+            + message;
+    } else if (path.rfind("/user-agent", 0) == 0) {
+        std::string user_agent = "Unknown";
+        size_t header_start = request.find("\r\nUser-Agent: ");
+        if (header_start != std::string::npos) {
+            header_start += std::string("\r\nUser-Agent: ").length();
+            size_t header_end = request.find("\r\n", header_start);
+            user_agent = request.substr(header_start, header_end - header_start);
+        }
 
+        http_response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain\r\n"
+            "Content-Length: " + std::to_string(user_agent.size()) + "\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            + user_agent;
     } else {
         http_response =
             "HTTP/1.1 404 Not Found\r\n"
