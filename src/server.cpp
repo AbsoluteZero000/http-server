@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     std::cout << "Client connected\n";
 
     // Buffer to store the HTTP request
-    char buffer[1024];
+    char buffer[2048];
     memset(buffer, 0, sizeof(buffer));
     recv(client, buffer, sizeof(buffer) - 1, 0);
 
@@ -77,6 +77,16 @@ int main(int argc, char **argv) {
             "Connection: close\r\n"
             "\r\n"
             "<html><body><h1>Hello from your server!</h1></body></html>";
+    }else if(path.rfind("/echo", 0) == 0){
+        std::cout<<"Echo: "<<path.substr(6)<<std::endl;
+        http_response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: " + std::to_string(path.substr(6).size()) + "\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            + path.substr(6);
+
     } else {
         http_response =
             "HTTP/1.1 404 Not Found\r\n"
