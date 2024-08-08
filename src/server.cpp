@@ -1,6 +1,8 @@
 #include <iostream>
 #include <thread>
+#include <vector>
 #include <string>
+#include <algorithm>
 #include <cstring>
 #include <cstdlib>
 #include <netdb.h>
@@ -8,10 +10,14 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include<fstream>
-#include<map>
+#include <fstream>
+#include <map>
+
+const std::vector<std::string> ALLOWED_ENCODINGS = {"gzip"};
 
 void handleClient(int client_fd, std::string files_directory) {
+
+
     char buffer[2048];
     memset(buffer, 0, sizeof(buffer));
     recv(client_fd, buffer, sizeof(buffer) - 1, 0);
@@ -36,7 +42,29 @@ void handleClient(int client_fd, std::string files_directory) {
             if (colon_pos != std::string::npos) {
                 std::string key = header.substr(0, colon_pos);
                 std::string value = header.substr(colon_pos + 2);
-                headers[key] = value;
+                if(key == "Accept-Encoding"){
+                    while(value.find(",") != std::string::npos){
+                        std::string encoding_type = value.substr(0, value.find(","));
+                        if(std::find(ALLOWED_ENCODINGS.begin(), ALLOWED_ENCODINGS.end(), encoding_type) != ALLOWED_ENCODINGS.end()){
+                            if(headers.find(key) == headers.end()){
+                                headers[key] = encoding_type;
+                            }else{
+                                headers[key] = headers[key] + ", " + encoding_type;
+                            }
+                        }
+                        value = value.substr(value.find(",") + 2);
+                    }
+                }else{
+                    headers[key] = value;
+                }
+                if(std::find(ALLOWED_ENCODINGS.begin(), ALLOWED_ENCODINGS.end(), value) != ALLOWED_ENCODINGS.end()){
+                    if(headers.find(key) == headers.end())
+                        headers[key] = value;
+                    else
+                        headers[key] += value;
+
+                }
+
             }
             headers_str = headers_str.substr(header_end + 2);
         }
@@ -55,11 +83,11 @@ void handleClient(int client_fd, std::string files_directory) {
     } else if (path.rfind("/echo", 0) == 0) {
 
         std::string message = path.substr(6);
-        if(headers.find("Accept-Encoding") != headers.end() && headers["Accept-Encoding"] == "gzip") {
+        if(headers.find("Accept-Encoding") != headers.end()) {
             http_response =
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: text/plain\r\n"
-                "Content-Encoding: gzip\r\n"
+                "Content-Encoding: " + headers["Accept-Encoding"] + "\r\n"
                 "Content-Length: " + std::to_string(message.size()) + "\r\n"
                 "Connection: close\r\n"
                 "\r\n"
