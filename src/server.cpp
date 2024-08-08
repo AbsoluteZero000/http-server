@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include<fstream>
+#include<map>
 
 void handleClient(int client_fd, std::string files_directory) {
     char buffer[2048];
@@ -24,6 +25,22 @@ void handleClient(int client_fd, std::string files_directory) {
     std::string method = request_line.substr(0, method_end);
     std::string path = request_line.substr(method_end + 1, path_end - method_end - 1);
 
+    std::map<std::string, std::string> headers;
+    size_t header_start = request.find("\r\n");
+    if (header_start != std::string::npos) {
+        std::string headers_str = request.substr(header_start + 2);
+        size_t header_end = 0;
+        while ((header_end = headers_str.find("\r\n")) != std::string::npos) {
+            std::string header = headers_str.substr(0, header_end);
+            size_t colon_pos = header.find(": ");
+            if (colon_pos != std::string::npos) {
+                std::string key = header.substr(0, colon_pos);
+                std::string value = header.substr(colon_pos + 2);
+                headers[key] = value;
+            }
+            headers_str = headers_str.substr(header_end + 2);
+        }
+    }
     std::cout << "Path: " << path << std::endl;
 
     std::string http_response;
@@ -36,30 +53,35 @@ void handleClient(int client_fd, std::string files_directory) {
             "\r\n"
             "<html><body><h1>Hello from your server!</h1></body></html>";
     } else if (path.rfind("/echo", 0) == 0) {
-        std::string message = path.substr(6);
-        http_response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/plain\r\n"
-            "Content-Length: " + std::to_string(message.size()) + "\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-            + message;
-    } else if (path.rfind("/user-agent", 0) == 0) {
-        std::string user_agent = "Unknown";
-        size_t header_start = request.find("\r\nUser-Agent: ");
-        if (header_start != std::string::npos) {
-            header_start += std::string("\r\nUser-Agent: ").length();
-            size_t header_end = request.find("\r\n", header_start);
-            user_agent = request.substr(header_start, header_end - header_start);
-        }
 
+        std::string message = path.substr(6);
+        if(headers.find("Accept-Encoding") != headers.end() && headers["Accept-Encoding"] == "gzip") {
+            http_response =
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: text/plain\r\n"
+                "Content-Encoding: gzip\r\n"
+                "Content-Length: " + std::to_string(message.size()) + "\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                + message;
+        }
+        else{
+            http_response =
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: text/plain\r\n"
+                "Content-Length: " + std::to_string(message.size()) + "\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                + message;
+        }
+    } else if (path.rfind("/user-agent", 0) == 0) {
         http_response =
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: text/plain\r\n"
-            "Content-Length: " + std::to_string(user_agent.size()) + "\r\n"
+            "Content-Length: " + std::to_string(headers["User-Agent"].size()) + "\r\n"
             "Connection: close\r\n"
             "\r\n"
-            + user_agent;
+            + headers["User-Agent"];
     } else if (path.rfind("/files", 0) == 0) {
 
         std::string filePath = files_directory + path.substr(6);
