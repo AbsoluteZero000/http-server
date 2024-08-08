@@ -8,8 +8,9 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include<fstream>
 
-void handleClient(int client_fd){
+void handleClient(int client_fd, std::string files_directory) {
     char buffer[2048];
     memset(buffer, 0, sizeof(buffer));
     recv(client_fd, buffer, sizeof(buffer) - 1, 0);
@@ -59,6 +60,23 @@ void handleClient(int client_fd){
             "Connection: close\r\n"
             "\r\n"
             + user_agent;
+    } else if (path.rfind("/files", 0) == 0) {
+        std::string content = "";
+        std::ifstream file(files_directory + path.substr(6));
+
+        if (file.is_open()) {
+            std::string line;
+            while (getline(file, line))
+                content += "\n" + line;
+        }
+
+        http_response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain\r\n"
+            "Content-Length: " + std::to_string(content.size()) + "\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            + content;
     } else {
         http_response =
             "HTTP/1.1 404 Not Found\r\n"
@@ -79,7 +97,10 @@ void handleClient(int client_fd){
 int main(int argc, char **argv) {
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
-
+    std::string files_directory = "/tmp/";
+    if(argc > 1){
+        files_directory = argv[1];
+    }
     std::cout << "Logs from your program will appear here!\n";
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -123,7 +144,7 @@ int main(int argc, char **argv) {
         }
 
         std::cout << "Client connected\n";
-        std::thread(handleClient, client).detach();
+        std::thread(handleClient, client, files_directory).detach();
     }
 
     close(server_fd);
