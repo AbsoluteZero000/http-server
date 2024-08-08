@@ -72,7 +72,7 @@ void handleClient(int client_fd, std::string files_directory) {
 
         http_response =
             "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/plain\r\n"
+            "Content-Type: text/octet-stream\r\n"
             "Content-Length: " + std::to_string(content.size()) + "\r\n"
             "Connection: close\r\n"
             "\r\n"
@@ -98,9 +98,19 @@ int main(int argc, char **argv) {
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
     std::string files_directory = "/tmp/";
-    if(argc > 1){
-        files_directory = argv[1];
-    }
+    if(argc > 1)
+        for(int i = 1; i < argc; i++){
+            if(strcmp(argv[i],  "--directory") == 0){
+                std::cout<<"adding new directory "<<std::endl;
+                if(i+1 < argc){
+                    files_directory = argv[i+1];
+                }else{
+                    std::cerr<<"no directory specified"<<std::endl;
+                    return 1;
+                }
+            }
+        }
+
     std::cout << "Logs from your program will appear here!\n";
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
