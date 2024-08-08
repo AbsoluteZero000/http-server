@@ -61,22 +61,29 @@ void handleClient(int client_fd, std::string files_directory) {
             "\r\n"
             + user_agent;
     } else if (path.rfind("/files", 0) == 0) {
-        std::string content = "";
-        std::ifstream file(files_directory + path.substr(6));
+        std::string filePath = files_directory + path.substr(6);
+        std::ifstream file(filePath, std::ios::binary);
 
         if (file.is_open()) {
-            std::string line;
-            while (getline(file, line))
-                content += "\n" + line;
-        }
+            std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
 
-        http_response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: application/octet-stream\r\n"
-            "Content-Length: " + std::to_string(content.size()) + "\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-            + content;
+            http_response =
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: application/octet-stream\r\n"
+                "Content-Length: " + std::to_string(content.size()) + "\r\n"
+                "Connection: close\r\n"
+                "\r\n" +
+                content;
+        } else {
+            http_response =
+                "HTTP/1.1 404 Not Found\r\n"
+                "Content-Type: text/html\r\n"
+                "Content-Length: 23\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "<html><body><h1>404 Not Found</h1></body></html>";
+        }
     } else {
         http_response =
             "HTTP/1.1 404 Not Found\r\n"
