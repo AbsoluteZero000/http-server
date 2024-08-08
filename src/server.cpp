@@ -72,7 +72,7 @@ void handleClient(int client_fd, std::string files_directory) {
 
         http_response =
             "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/octet-stream\r\n"
+            "Content-Type: application/octet-stream\r\n"
             "Content-Length: " + std::to_string(content.size()) + "\r\n"
             "Connection: close\r\n"
             "\r\n"
