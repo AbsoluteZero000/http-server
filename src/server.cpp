@@ -1,19 +1,57 @@
 #include <iostream>
+#include <map>
+#include <zlib.h>
 #include <thread>
 #include <vector>
 #include <string>
-#include <algorithm>
+#include <fstream>
 #include <cstring>
 #include <cstdlib>
 #include <netdb.h>
 #include <unistd.h>
+#include <algorithm>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <fstream>
-#include <map>
 
 const std::vector<std::string> ALLOWED_ENCODINGS = {"gzip"};
+
+std::string gzipCompress(const std::string& input) {
+    z_stream zs;
+    std::vector<char> buffer;
+
+    zs.zalloc = Z_NULL;
+    zs.zfree = Z_NULL;
+    zs.opaque = Z_NULL;
+    zs.avail_in = static_cast<uInt>(input.size());
+    zs.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
+
+    if (deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+        throw std::runtime_error("deflateInit2 failed");
+    }
+
+    // Compress
+    do {
+        int chunk_size = 32768;
+        buffer.resize(chunk_size);
+        zs.avail_out = chunk_size;
+        zs.next_out = reinterpret_cast<Bytef*>(buffer.data());
+
+        int ret = deflate(&zs, Z_FINISH);
+
+        if (ret == Z_STREAM_ERROR) {
+            deflateEnd(&zs);
+            throw std::runtime_error("deflate failed");
+        }
+
+        buffer.resize(chunk_size - zs.avail_out);
+
+    } while (zs.avail_out == 0);
+
+    deflateEnd(&zs);
+
+    return std::string(buffer.begin(), buffer.end());
+}
 
 void handleClient(int client_fd, std::string files_directory) {
 
@@ -84,6 +122,7 @@ void handleClient(int client_fd, std::string files_directory) {
 
         std::string message = path.substr(6);
         if(headers.find("Accept-Encoding") != headers.end()) {
+            message = gzipCompress(message);
             http_response =
                 "HTTP/1.1 200 OK\r\n"
                 "Content-Type: text/plain\r\n"
